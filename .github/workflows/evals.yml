@@ -1,0 +1,42 @@
+name: agent evals
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: dataset version tag to evaluate against
+        default: prod
+
+env:
+  LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+  LANGSMITH_ENDPOINT: https://eu.api.smith.langchain.com
+  LANGSMITH_PROJECT: ci-evals
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}   # optional, enables the LLM judge
+  DATASET: agent-golden-set
+  TAG: ${{ github.event.inputs.tag || 'prod' }}
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      # 1. The dataset still looks the way the team agreed. Fails the build if not.
+      - name: check dataset schema
+        run: python -m evals check-schema --dataset "$DATASET" --tag "$TAG"
+
+      # 2. Run the agent over the pinned dataset version and gate on the score.
+      #    Swap AGENT_MODE for http or agentcore and set the matching secrets.
+      - name: run evals
+        env:
+          AGENT_MODE: echo
+          # AGENT_MODE: agentcore
+          # AGENT_RUNTIME_ARN: ${{ secrets.AGENT_RUNTIME_ARN }}
+          # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python -m evals run --dataset "$DATASET" --tag "$TAG" --threshold 0.8 --gate-key keyword_coverage
