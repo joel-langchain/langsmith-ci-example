@@ -78,16 +78,19 @@ Two things to know before the first run.
 |---|---|
 | `.github/workflows/evals.yml` | The pipeline. Schema check, then the gated run. |
 | `evals/__main__.py` | The CLI. `check-schema`, `run`, `promote`. |
-| `evals/target.py` | The one function that calls the agent. Swap `AGENT_MODE` for `http` or `agentcore`. |
+| `evals/target.py` | The one function that calls the agent. AgentCore by default, `http` for anything else. |
 | `evals/evaluators.py` | Two code evaluators plus an LLM judge that switches on when `OPENAI_API_KEY` is set. |
 
 ## Wiring in a real agent
 
-`evals/target.py` has four modes.
+The workflow calls an AgentCore runtime by ARN out of the box. Set the `AGENT_RUNTIME_ARN`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` secrets and it runs the real agent on every pull request.
 
-- `echo` returns the question. It always fails the gate. Use it to check the pipeline fails properly.
-- `reference` returns the reference answer. It always passes. Use it to check the pipeline end to end before the agent is wired in.
-- `http` posts the question to `AGENT_URL`. `agentcore` invokes an AgentCore runtime by ARN. Fill in the secrets in the workflow and set `AGENT_MODE`.
+`evals/target.py` has four modes, picked with `AGENT_MODE`.
+
+- `agentcore` invokes an AgentCore runtime by ARN. The default.
+- `http` posts the question to `AGENT_URL`, for an agent behind a gateway or any other endpoint.
+- `reference` returns the reference answer. It always passes. Use it to check the pipeline end to end without calling an agent.
+- `echo` returns the question. It always fails the gate. Use it to check a failing build looks right.
 
 The evaluators read `outputs["answer"]`, so whatever the agent returns, put the answer under that key.
 
@@ -107,7 +110,8 @@ Gate on the code evaluator by default. It is free, deterministic, and cannot hav
 |---|---|---|
 | `LANGSMITH_API_KEY` | yes | A service key for the workspace. |
 | `OPENAI_API_KEY` | no | Turns on the LLM judge. |
-| `AGENT_RUNTIME_ARN`, AWS credentials | for `agentcore` mode | |
+| `AGENT_RUNTIME_ARN` | yes | The AgentCore runtime to evaluate. |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | yes | Credentials allowed to invoke that runtime. |
 
 `LANGSMITH_ENDPOINT` is set to the EU endpoint in the workflow.
 

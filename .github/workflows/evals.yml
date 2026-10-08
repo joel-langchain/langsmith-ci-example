@@ -31,12 +31,14 @@ jobs:
         run: python -m evals check-schema --dataset "$DATASET" --tag "$TAG"
 
       # 2. Run the agent over the pinned dataset version and gate on the score.
-      #    Swap AGENT_MODE for http or agentcore and set the matching secrets.
+      #    Calls the AgentCore runtime by ARN. To check the pipeline without the
+      #    agent, set AGENT_MODE to reference (always passes) or echo (always fails).
       - name: run evals
         env:
-          AGENT_MODE: echo
-          # AGENT_MODE: agentcore
-          # AGENT_RUNTIME_ARN: ${{ secrets.AGENT_RUNTIME_ARN }}
-          # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AGENT_MODE: agentcore
+          AGENT_RUNTIME_ARN: ${{ secrets.AGENT_RUNTIME_ARN }}
+          AGENT_QUALIFIER: DEFAULT
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python -m evals run --dataset "$DATASET" --tag "$TAG" --threshold 0.8 --gate-key keyword_coverage
