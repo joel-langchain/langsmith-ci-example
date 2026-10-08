@@ -6,7 +6,7 @@ A small, working example of the pattern. The golden dataset lives in LangSmith, 
 
 1. **LangSmith is the source of truth for the dataset.** Subject-matter experts add and correct examples in the UI. Every edit makes a new version automatically.
 2. **The pipeline pins a tag, not "latest".** A tag such as `prod` points at one version. CI evaluates against that version until someone moves the tag, so edits in the UI never change a build result by surprise.
-3. **CI enforces the dataset schema.** Every example must carry the metadata the team agreed on (here, a `risk` level) and a reference answer. If an example is added without them, the build fails before any agent runs. The required keys are the `REQUIRED_METADATA` tuple at the top of `evals/__main__.py`. Change it to whatever your team agrees, or the check fails on a dataset that has no `risk` key.
+3. **CI enforces the dataset schema.** Every example must carry a reference answer and whatever metadata the team agrees on, for example a persona or a risk level. If an example is added without them, the build fails before any agent runs. Out of the box only the reference answer is required. Add keys to the `REQUIRED_METADATA` tuple at the top of `evals/__main__.py` once you have decided on them.
 4. **The harness lives in the repo and runs through a CLI.** Same commands locally and in CI. The agent is called through one adapter function, so swapping the agent never touches the rest.
 5. **Gate on a score.** The run exits non-zero if the gate metric falls below a threshold, which is what makes a GitHub Actions step fail.
 6. **Promote on purpose.** When the new examples are ready, move the tag. That is the only moment the pipeline's dataset changes.
@@ -27,7 +27,7 @@ flowchart LR
     end
 
     subgraph CI["GitHub Actions, on every pull request"]
-        S1["check-schema<br/>every example has risk and a reference answer"]
+        S1["check-schema<br/>every example has a reference answer and the agreed metadata"]
         S2["run<br/>agent answers each example"]
         S3["evaluators<br/>keyword coverage, response present, optional judge"]
         GATE{"mean score at or above threshold?"}
@@ -55,7 +55,7 @@ flowchart LR
 ## Commands
 
 ```bash
-# does every example carry the agreed metadata and a reference answer?
+# does every example carry a reference answer and the agreed metadata?
 python -m evals check-schema --dataset "agent-golden-set" --tag prod
 
 # run the agent over the pinned dataset version, score it, gate on the mean

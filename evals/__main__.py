@@ -13,7 +13,9 @@ from . import target
 from .evaluators import build_evaluators
 from .target import call_agent
 
-REQUIRED_METADATA = ("risk",)  # every example must carry these keys
+# Metadata keys every example must carry. Empty until the team agrees on them,
+# e.g. ("risk",) or ("persona", "topic"). The reference answer is always required.
+REQUIRED_METADATA: tuple[str, ...] = ()
 
 
 def cmd_check_schema(args) -> int:
