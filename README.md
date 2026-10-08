@@ -111,9 +111,33 @@ Gate on the code evaluator by default. It is free, deterministic, and cannot hav
 
 `LANGSMITH_ENDPOINT` is set to the EU endpoint in the workflow.
 
-## Docs
+## References
 
-- [Manage datasets, versions, and tags](https://docs.langchain.com/langsmith/manage-datasets)
-- [Evaluation concepts](https://docs.langchain.com/langsmith/evaluation-concepts)
-- [Evaluation quickstart](https://docs.langchain.com/langsmith/evaluation-quickstart)
-- [openevals](https://github.com/langchain-ai/openevals)
+Where each step of the pattern comes from, and who else runs it this way.
+
+### Docs, by step
+
+| Step | Page | What it says |
+|---|---|---|
+| Dataset as source of truth | [Evaluation concepts](https://docs.langchain.com/langsmith/evaluation-concepts) | Versions are created automatically when examples change. Tag versions to mark milestones. Target specific versions in CI so dataset updates do not break workflows. |
+| Pin a tag | [Manage datasets](https://docs.langchain.com/langsmith/manage-datasets) | Shows tagging a version as `prod` and running tests against it. `list_examples(as_of="prod")` is the documented way to read a tagged version. |
+| Pin a tag | [`list_examples`](https://reference.langchain.com/python/langsmith/client/Client/list_examples), [`update_dataset_tag`](https://reference.langchain.com/python/langsmith/client/Client/update_dataset_tag) | SDK reference for reading by tag and moving a tag. |
+| Edit examples in the UI | [Manage datasets in the application](https://docs.langchain.com/langsmith/manage-datasets-in-application) | Adding runs to a dataset, editing examples and their metadata in the UI. |
+| Run and score | [Evaluate an LLM application](https://docs.langchain.com/langsmith/evaluate-llm-application), [Evaluation quickstart](https://docs.langchain.com/langsmith/evaluation-quickstart) | `evaluate()` with a target function, a dataset or an iterator of examples, evaluators, and experiment metadata. |
+| Evaluators | [openevals](https://github.com/langchain-ai/openevals), [Run evals with openevals](https://docs.langchain.com/langsmith/openevals) | Ready-made LLM-as-judge and code evaluators that drop straight into `evaluate()`. |
+| CI | [Pytest integration](https://docs.langchain.com/langsmith/pytest), [Vitest and Jest](https://docs.langchain.com/langsmith/vitest-jest) | The test-framework route. Each test becomes a dataset example and each run an experiment. Advice on caching LLM calls in CI and setting experiment metadata from env vars. The pytest page says to move to `evaluate()` as the example list grows, which is what this repo does. |
+| CI | [CI/CD pipeline example](https://docs.langchain.com/langsmith/cicd-pipeline-example), [repo](https://github.com/langchain-ai/cicd-pipeline-example) | The official end-to-end GitHub Actions example. Offline evals with openevals run on every pull request, then preview and production deploys. Larger than this repo, same idea. |
+| Compare to a baseline | [Compare experiment results](https://docs.langchain.com/langsmith/compare-experiment-results) | Pick a source experiment, see per-example regressions and improvements in the UI. |
+| Production loop | [Online evaluations](https://docs.langchain.com/langsmith/online-evaluations-llm-as-judge), [Annotation queues](https://docs.langchain.com/langsmith/annotation-queues), [Automation rules](https://docs.langchain.com/langsmith/rules) | Score live traffic with sampling, route flagged runs to a queue, correct them, and add them to the dataset as the next version. |
+
+The score gate in this repo, a mean per evaluator checked against a threshold with a non-zero exit, is harness code rather than a documented SDK feature. The docs route to a failing build is assertions in the pytest or vitest integrations. Either works; this repo uses the gate so the threshold is a flag, not a code change.
+
+### Case studies
+
+Public write-ups on langchain.com that describe the same loop.
+
+- [monday.com](https://www.langchain.com/blog/customers-monday). Test suites as datasets, an eval command that runs in the CI pipeline, every CI run logged as a separate experiment, online LLM-as-judge on sampled traffic.
+- [Rippling](https://www.langchain.com/blog/how-rippling-went-ai-native-across-every-product-in-6-months-with-deep-agents-and-langsmith). Layered evals. Cheap checks on every commit, a larger set after merge, a small deploy-blocking set that gates every release, scheduled evals on production data.
+- [ServiceNow](https://www.langchain.com/blog/customers-servicenow). Golden datasets built from successful runs to prevent regression, production runs above a score threshold added to the dataset automatically.
+- [Madrigal](https://www.langchain.com/blog/customers-madrigal). Production failures feed back into datasets, every meaningful error becomes a new test case, deploys through GitHub CI.
+- [Podium](https://www.langchain.com/blog/customers-podium). Baseline dataset with edge cases added over time for regression testing, plus online evaluation.
