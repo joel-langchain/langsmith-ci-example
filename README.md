@@ -13,6 +13,45 @@ A small, working example of the pattern. The golden dataset lives in LangSmith, 
 
 Production closes the loop separately: online evaluators score live traffic, flagged runs go to an annotation queue, and reviewed examples are added to the dataset as the next version.
 
+## How it fits together
+
+```mermaid
+flowchart LR
+    SME["Subject matter experts<br/>add and fix examples in the UI"] --> DS
+
+    subgraph LS["LangSmith"]
+        DS[("Golden dataset<br/>every edit makes a new version")]
+        TAG["prod tag<br/>points at one version"]
+        EXP["Experiment<br/>score and comment per example"]
+        DS --- TAG
+    end
+
+    subgraph CI["GitHub Actions, on every pull request"]
+        S1["check-schema<br/>every example has risk and a reference answer"]
+        S2["run<br/>agent answers each example"]
+        S3["evaluators<br/>keyword coverage, response present, optional judge"]
+        GATE{"mean score at or above threshold?"}
+        S1 --> S2 --> S3 --> GATE
+        GATE -->|yes| PASS["build passes"]
+        GATE -->|no| FAIL["build fails"]
+    end
+
+    TAG -. "pinned version" .-> S1
+    TAG -. "pinned version" .-> S2
+    S2 <--> AGENT["Your agent<br/>target.py, one function to swap"]
+    S3 --> EXP
+    PROMOTE["promote<br/>move the tag on purpose"] --> TAG
+```
+
+The dataset only changes for the pipeline when someone runs `promote`. Everything else, including edits in the UI, leaves the build result alone.
+
+Production feeds the next version.
+
+```mermaid
+flowchart LR
+    LIVE["Live traffic<br/>traces"] --> OE["Online evaluators<br/>score every run"] --> AQ["Annotation queue<br/>flagged runs reviewed"] --> ADD["Add to dataset"] --> DS[("Golden dataset<br/>next version")] --> PROMOTE["promote when ready"]
+```
+
 ## Commands
 
 ```bash
