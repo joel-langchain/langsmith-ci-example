@@ -6,7 +6,7 @@ A small, working example of the pattern. The golden dataset lives in LangSmith, 
 
 1. **LangSmith is the source of truth for the dataset.** Subject-matter experts add and correct examples in the UI. Every edit makes a new version automatically.
 2. **The pipeline pins a tag, not "latest".** A tag such as `prod` points at one version. CI evaluates against that version until someone moves the tag, so edits in the UI never change a build result by surprise.
-3. **CI enforces the dataset schema.** Every example must carry the metadata the team agreed on (here, a `risk` level) and a reference answer. If an example is added without them, the build fails before any agent runs.
+3. **CI enforces the dataset schema.** Every example must carry the metadata the team agreed on (here, a `risk` level) and a reference answer. If an example is added without them, the build fails before any agent runs. The required keys are the `REQUIRED_METADATA` tuple at the top of `evals/__main__.py`. Change it to whatever your team agrees, or the check fails on a dataset that has no `risk` key.
 4. **The harness lives in the repo and runs through a CLI.** Same commands locally and in CI. The agent is called through one adapter function, so swapping the agent never touches the rest.
 5. **Gate on a score.** The run exits non-zero if the gate metric falls below a threshold, which is what makes a GitHub Actions step fail.
 6. **Promote on purpose.** When the new examples are ready, move the tag. That is the only moment the pipeline's dataset changes.
@@ -28,6 +28,11 @@ python -m evals promote --dataset "agent-golden-set" --tag prod
 
 `run` prints a summary and, in GitHub Actions, writes it to the job summary with a link to the experiment in LangSmith.
 
+Two things to know before the first run.
+
+- The tag has to exist. A tag that has never been set returns no examples, so run `promote --tag prod` once to create it. After that, only move it on purpose.
+- Locally, export the variables from `.env.example` yourself (for example `set -a; source .env; set +a`). Nothing in the harness reads a `.env` file. In GitHub Actions the workflow sets them from secrets.
+
 ## Files
 
 | File | What it is |
@@ -39,7 +44,7 @@ python -m evals promote --dataset "agent-golden-set" --tag prod
 
 ## Wiring in a real agent
 
-`evals/target.py` has three modes.
+`evals/target.py` has four modes.
 
 - `echo` returns the question. It always fails the gate. Use it to check the pipeline fails properly.
 - `reference` returns the reference answer. It always passes. Use it to check the pipeline end to end before the agent is wired in.

@@ -20,6 +20,11 @@ def cmd_check_schema(args) -> int:
     """Fail if any example is missing the metadata the team agreed on."""
     client = Client()
     examples = list(client.list_examples(dataset_name=args.dataset, as_of=args.tag))
+    if not examples:
+        # A tag that does not exist yet returns nothing rather than an error,
+        # so treat an empty set as a failure. Create the tag with `promote` first.
+        print(f"FAIL: no examples in '{args.dataset}' @ {args.tag} (does the tag exist? run promote first)")
+        return 1
     bad = []
     for ex in examples:
         md = ex.metadata or {}
@@ -41,7 +46,7 @@ def cmd_run(args) -> int:
     client = Client()
     examples = list(client.list_examples(dataset_name=args.dataset, as_of=args.tag))
     if not examples:
-        print(f"no examples in '{args.dataset}' @ {args.tag}")
+        print(f"FAIL: no examples in '{args.dataset}' @ {args.tag} (does the tag exist? run promote first)")
         return 1
     if target.MODE == "reference":
         target.REFERENCE_BY_QUESTION = {
