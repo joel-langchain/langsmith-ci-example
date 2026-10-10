@@ -78,19 +78,19 @@ Two things to know before the first run.
 |---|---|
 | `.github/workflows/evals.yml` | The pipeline. Schema check, then the gated run. |
 | `evals/__main__.py` | The CLI. `check-schema`, `run`, `promote`. |
-| `evals/target.py` | The one function that calls the agent. AgentCore by default, `http` for anything else. |
+| `evals/target.py` | The one function that calls the agent. AgentCore, any HTTP endpoint, or two stand-ins for testing the pipeline. |
 | `evals/evaluators.py` | Two code evaluators plus an LLM judge that switches on when `OPENAI_API_KEY` is set. |
 
 ## Wiring in a real agent
 
-The workflow calls an AgentCore runtime by ARN out of the box. Set the `AGENT_RUNTIME_ARN`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` secrets and it runs the real agent on every pull request.
+The workflow calls an AgentCore runtime by ARN unless you set the `AGENT_MODE` repository variable to something else. Set the `AGENT_RUNTIME_ARN`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` secrets and the `AWS_REGION` variable, and it runs the real agent on every pull request. For an agent behind an HTTP endpoint, set `AGENT_MODE` to `http` and add `AGENT_URL` (and `AGENT_TOKEN` if it needs one).
 
 `evals/target.py` has four modes, picked with `AGENT_MODE`.
 
-- `agentcore` invokes an AgentCore runtime by ARN. The default.
+- `agentcore` invokes an AgentCore runtime by ARN. The workflow's default.
 - `http` posts the question to `AGENT_URL`, for an agent behind a gateway or any other endpoint.
 - `reference` returns the reference answer. It always passes. Use it to check the pipeline end to end without calling an agent.
-- `echo` returns the question. It always fails the gate. Use it to check a failing build looks right.
+- `echo` returns the question. It always fails the gate. Use it to check a failing build looks right. It is also what the harness uses when `AGENT_MODE` is not set, for example on a laptop.
 
 The evaluators read `outputs["answer"]`, so whatever the agent returns, put the answer under that key.
 
@@ -110,10 +110,17 @@ Gate on the code evaluator by default. It is free, deterministic, and cannot hav
 |---|---|---|
 | `LANGSMITH_API_KEY` | yes | A service key for the workspace. |
 | `OPENAI_API_KEY` | no | Turns on the LLM judge. |
-| `AGENT_RUNTIME_ARN` | yes | The AgentCore runtime to evaluate. |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | yes | Credentials allowed to invoke that runtime. |
+| `AGENT_RUNTIME_ARN` | for `agentcore` | The AgentCore runtime to evaluate. |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | for `agentcore` | Credentials allowed to invoke that runtime. |
+| `AGENT_URL`, `AGENT_TOKEN` | for `http` | The agent's endpoint, and a bearer token if it needs one. |
 
-`LANGSMITH_ENDPOINT` is set to the EU endpoint in the workflow.
+Repository variables (Settings, Secrets and variables, Actions, Variables), all optional.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `AGENT_MODE` | `agentcore` | `agentcore`, `http`, `reference`, or `echo`. |
+| `AWS_REGION` | none | The region of the AgentCore runtime. Needed for `agentcore`. |
+| `LANGSMITH_ENDPOINT` | `https://api.smith.langchain.com` | Set to `https://eu.api.smith.langchain.com` for a workspace in the EU region. |
 
 ## References
 

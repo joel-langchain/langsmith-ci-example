@@ -10,7 +10,8 @@ on:
 
 env:
   LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
-  LANGSMITH_ENDPOINT: https://eu.api.smith.langchain.com
+  # US by default. Set the LANGSMITH_ENDPOINT repository variable to https://eu.api.smith.langchain.com for an EU workspace.
+  LANGSMITH_ENDPOINT: ${{ vars.LANGSMITH_ENDPOINT || 'https://api.smith.langchain.com' }}
   LANGSMITH_PROJECT: ci-evals
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}   # optional, enables the LLM judge
   DATASET: agent-golden-set
@@ -31,14 +32,17 @@ jobs:
         run: python -m evals check-schema --dataset "$DATASET" --tag "$TAG"
 
       # 2. Run the agent over the pinned dataset version and gate on the score.
-      #    Calls the AgentCore runtime by ARN. To check the pipeline without the
-      #    agent, set AGENT_MODE to reference (always passes) or echo (always fails).
+      #    Calls the AgentCore runtime by ARN unless the AGENT_MODE repository variable
+      #    says otherwise: http for any endpoint, or reference (always passes) and
+      #    echo (always fails) to check the pipeline without an agent.
       - name: run evals
         env:
-          AGENT_MODE: agentcore
+          AGENT_MODE: ${{ vars.AGENT_MODE || 'agentcore' }}
           AGENT_RUNTIME_ARN: ${{ secrets.AGENT_RUNTIME_ARN }}
           AGENT_QUALIFIER: DEFAULT
-          AWS_REGION: us-east-1
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+          AGENT_TOKEN: ${{ secrets.AGENT_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python -m evals run --dataset "$DATASET" --tag "$TAG" --threshold 0.8 --gate-key keyword_coverage

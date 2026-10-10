@@ -2,3 +2,10 @@
 __pycache__/
 *.pyc
 .venv/
+*.pem
+*.key
+credentials.json
+.DS_Store
+.env.*
+!.env.example
+*.crt

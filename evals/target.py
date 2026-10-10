@@ -51,7 +51,8 @@ def call_agent(inputs: dict) -> dict:
 
         import boto3
 
-        client = boto3.client("bedrock-agentcore", region_name=os.environ.get("AWS_REGION", "us-east-1"))
+        # Region comes from AWS_REGION, or boto3's usual config if that is unset.
+        client = boto3.client("bedrock-agentcore", region_name=os.environ.get("AWS_REGION") or None)
         resp = client.invoke_agent_runtime(
             agentRuntimeArn=os.environ["AGENT_RUNTIME_ARN"],
             qualifier=os.environ.get("AGENT_QUALIFIER", "DEFAULT"),
